@@ -1,0 +1,31 @@
+
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+	integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+</head>
+<body>
+
+	<div class="container">
+		<h1>Main links</h1>
+		<small><a th:href="@{'/'}">Home</a></small>
+		<div class="row">
+			<div class="col-12">
+				<table class="table table-bordered table-sm">
+					<thead>
+						<tr>
+							<th scope="col">Type</th>
+							<th scope="col">Link</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>Web</td>
+							<td><a th:href="@{'/web/service/test'}">is api up (log)</a></td>
+						</tr>
+				</table>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
