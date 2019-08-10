@@ -25,9 +25,7 @@ public class HassIoState {
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		builder.append("HassIoState [attributes=");
-		builder.append(attributes);
-		builder.append(", entityId=");
+		builder.append("HassIoState [entityId=");
 		builder.append(entityId);
 		builder.append(", state=");
 		builder.append(state);
@@ -35,6 +33,8 @@ public class HassIoState {
 		builder.append(lastChanged);
 		builder.append(", lastUpdated=");
 		builder.append(lastUpdated);
+		builder.append(", attributes=");
+		builder.append(attributes);
 		builder.append("]");
 		return builder.toString();
 	}

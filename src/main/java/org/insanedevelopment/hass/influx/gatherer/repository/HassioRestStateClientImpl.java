@@ -1,7 +1,8 @@
 package org.insanedevelopment.hass.influx.gatherer.repository;
 
-import java.util.Collections;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
 
@@ -10,19 +11,16 @@ import org.insanedevelopment.hass.influx.gatherer.model.json.HassIoStateChangeEv
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 @Repository
 public class HassioRestStateClientImpl {
 
-	private static final HassIoStateListTypeReference HASSIO_STATE_LIST_TYPE_REFERENCE = new HassIoStateListTypeReference();
 	private static final Logger LOGGER = LoggerFactory.getLogger(HassioRestStateClientImpl.class);
 
 	private WebClient webClient;
@@ -45,22 +43,20 @@ public class HassioRestStateClientImpl {
 	}
 
 	public List<HassIoState> getAllCurrentStates() {
-		Mono<List<HassIoState>> webcallResult = webClient
+		Flux<HassIoState> webcallResult = webClient
 				.get()
 				.uri("/api/states")
 				.accept(MediaType.APPLICATION_JSON)
 				.retrieve()
-				.bodyToMono(HASSIO_STATE_LIST_TYPE_REFERENCE);
+				.bodyToFlux(HassIoState.class);
 
-		List<HassIoState> result = webcallResult
-				.blockOptional()
-				.orElse(Collections.emptyList());
+		List<HassIoState> result = webcallResult.collect(Collectors.toList()).block();
 
 		LOGGER.debug(".getAllCurrentStates - reply from service " + result);
 		return result;
 	}
 
-	public void subscribeToChanges() {
+	public void subscribeToChanges(BiConsumer<HassIoState, HassIoState> stateChangeObserver) {
 		Flux<HassIoStateChangeEvent> flux = webClient
 				.get()
 				.uri("/api/stream")
@@ -70,7 +66,7 @@ public class HassioRestStateClientImpl {
 		flux.onErrorContinue(new SilentlyIgnoreAllErrorsConsumer())
 				.filter(e -> "state_changed".equals(e.getEventType()))
 				.doOnNext(s -> LOGGER.debug(".subscribeToChanges Got message {}", s))
-				.subscribe();
+				.subscribe(s -> stateChangeObserver.accept(s.getData().getOldState(), s.getData().getNewState()));
 	}
 
 	private String expandUrl(String uriPart, Scheme scheme) {
@@ -84,9 +80,6 @@ public class HassioRestStateClientImpl {
 			break;
 		}
 		return result + hostname + uriPart;
-	}
-
-	private static final class HassIoStateListTypeReference extends ParameterizedTypeReference<List<HassIoState>> {
 	}
 
 	private enum Scheme {

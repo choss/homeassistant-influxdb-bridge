@@ -24,7 +24,6 @@ public class MainController {
 
 	@GetMapping("/web/service/subscribe")
 	public String subscribe() {
-		repository.subscribeToChanges();
 		return "redirect:/";
 	}
 
