@@ -17,8 +17,9 @@ public class MainController {
 	}
 
 	@GetMapping("/web/service/test")
-	public String text() {
+	public String test() {
 		repository.getAllCurrentStates();
+		repository.subscribeToChanges();
 		return "redirect:/";
 	}
 }

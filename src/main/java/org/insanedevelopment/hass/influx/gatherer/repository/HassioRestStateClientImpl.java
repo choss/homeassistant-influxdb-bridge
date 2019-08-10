@@ -10,10 +10,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import reactor.core.publisher.Flux;
 
 @Repository
 public class HassioRestStateClientImpl {
@@ -22,10 +27,12 @@ public class HassioRestStateClientImpl {
 
 	private RestTemplate template;
 
+	private WebClient webClient;
+
 	@Value("${hassio.token}")
 	private String bearerToken;
 
-	@Value("${hassio.host}")
+	@Value("${hassio.host}:${hassio.port}")
 	private String hostname;
 
 	@Value("${hassio.secure}")
@@ -35,6 +42,7 @@ public class HassioRestStateClientImpl {
 	public void init() {
 		template = new RestTemplate();
 		template.getInterceptors().add(new BearerTokenInterceptor(bearerToken));
+		webClient = WebClient.create(expandUrl("", Scheme.HTTP));
 	}
 
 	public List<HassIoState> getAllCurrentStates() {
@@ -48,6 +56,16 @@ public class HassioRestStateClientImpl {
 		} else {
 			return Collections.emptyList();
 		}
+	}
+
+	public void subscribeToChanges() {
+		Flux<String> flux = webClient
+				.get()
+				.uri("/api/stream")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken)
+				.accept(MediaType.APPLICATION_STREAM_JSON)
+				.retrieve().bodyToFlux(String.class);
+		flux.subscribe(s -> LOGGER.debug(".subscribeToChanges Got message {}", s));
 	}
 
 	private String expandUrl(String uriPart, Scheme scheme) {
