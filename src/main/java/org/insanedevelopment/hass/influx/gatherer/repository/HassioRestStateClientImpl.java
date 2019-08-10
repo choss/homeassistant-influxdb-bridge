@@ -6,26 +6,24 @@ import java.util.List;
 import javax.annotation.PostConstruct;
 
 import org.insanedevelopment.hass.influx.gatherer.model.json.HassIoState;
+import org.insanedevelopment.hass.influx.gatherer.model.json.HassIoStateChangeEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Repository;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Repository
 public class HassioRestStateClientImpl {
 
+	private static final HassIoStateListTypeReference HASSIO_STATE_LIST_TYPE_REFERENCE = new HassIoStateListTypeReference();
 	private static final Logger LOGGER = LoggerFactory.getLogger(HassioRestStateClientImpl.class);
-
-	private RestTemplate template;
 
 	private WebClient webClient;
 
@@ -40,32 +38,39 @@ public class HassioRestStateClientImpl {
 
 	@PostConstruct
 	public void init() {
-		template = new RestTemplate();
-		template.getInterceptors().add(new BearerTokenInterceptor(bearerToken));
-		webClient = WebClient.create(expandUrl("", Scheme.HTTP));
+		webClient = WebClient.builder()
+				.baseUrl(expandUrl("", Scheme.HTTP))
+				.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken)
+				.build();
 	}
 
 	public List<HassIoState> getAllCurrentStates() {
-		String url = expandUrl("/api/states", Scheme.HTTP);
-		ResponseEntity<List<HassIoState>> result = template.exchange(url, HttpMethod.GET, null, new ParameterizedTypeReference<List<HassIoState>>() {
-		});
-		LOGGER.debug(".getAllCurrentStates - reply from service " + result);
+		Mono<List<HassIoState>> webcallResult = webClient
+				.get()
+				.uri("/api/states")
+				.accept(MediaType.APPLICATION_JSON)
+				.retrieve()
+				.bodyToMono(HASSIO_STATE_LIST_TYPE_REFERENCE);
 
-		if (result.hasBody()) {
-			return result.getBody();
-		} else {
-			return Collections.emptyList();
-		}
+		List<HassIoState> result = webcallResult
+				.blockOptional()
+				.orElse(Collections.emptyList());
+
+		LOGGER.debug(".getAllCurrentStates - reply from service " + result);
+		return result;
 	}
 
 	public void subscribeToChanges() {
-		Flux<String> flux = webClient
+		Flux<HassIoStateChangeEvent> flux = webClient
 				.get()
 				.uri("/api/stream")
-				.header(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken)
 				.accept(MediaType.APPLICATION_STREAM_JSON)
-				.retrieve().bodyToFlux(String.class);
-		flux.subscribe(s -> LOGGER.debug(".subscribeToChanges Got message {}", s));
+				.retrieve()
+				.bodyToFlux(HassIoStateChangeEvent.class);
+		flux.onErrorContinue(new SilentlyIgnoreAllErrorsConsumer())
+				.filter(e -> "state_changed".equals(e.getEventType()))
+				.doOnNext(s -> LOGGER.debug(".subscribeToChanges Got message {}", s))
+				.subscribe();
 	}
 
 	private String expandUrl(String uriPart, Scheme scheme) {
@@ -79,6 +84,9 @@ public class HassioRestStateClientImpl {
 			break;
 		}
 		return result + hostname + uriPart;
+	}
+
+	private static final class HassIoStateListTypeReference extends ParameterizedTypeReference<List<HassIoState>> {
 	}
 
 	private enum Scheme {

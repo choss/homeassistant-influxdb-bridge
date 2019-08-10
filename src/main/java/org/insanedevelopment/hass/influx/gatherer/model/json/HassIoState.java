@@ -39,4 +39,24 @@ public class HassIoState {
 		return builder.toString();
 	}
 
+	public Map<String, Object> getAttributes() {
+		return attributes;
+	}
+
+	public String getEntityId() {
+		return entityId;
+	}
+
+	public String getState() {
+		return state;
+	}
+
+	public Date getLastChanged() {
+		return lastChanged;
+	}
+
+	public Date getLastUpdated() {
+		return lastUpdated;
+	}
+
 }
