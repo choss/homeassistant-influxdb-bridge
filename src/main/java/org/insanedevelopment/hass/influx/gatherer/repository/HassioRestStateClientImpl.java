@@ -1,9 +1,6 @@
 package org.insanedevelopment.hass.influx.gatherer.repository;
 
-import java.util.List;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
-
 import javax.annotation.PostConstruct;
 
 import org.insanedevelopment.hass.influx.gatherer.model.json.HassIoState;
@@ -42,18 +39,14 @@ public class HassioRestStateClientImpl {
 				.build();
 	}
 
-	public List<HassIoState> getAllCurrentStates() {
+	public Flux<HassIoState> getAllCurrentStates() {
 		Flux<HassIoState> webcallResult = webClient
 				.get()
 				.uri("/api/states")
 				.accept(MediaType.APPLICATION_JSON)
 				.retrieve()
 				.bodyToFlux(HassIoState.class);
-
-		List<HassIoState> result = webcallResult.collect(Collectors.toList()).block();
-
-		LOGGER.debug(".getAllCurrentStates - reply from service " + result);
-		return result;
+		return webcallResult;
 	}
 
 	public void subscribeToChanges(BiConsumer<HassIoState, HassIoState> stateChangeObserver) {

@@ -1,6 +1,6 @@
 package org.insanedevelopment.hass.influx.gatherer.controller;
 
-import org.insanedevelopment.hass.influx.gatherer.repository.HassioRestStateClientImpl;
+import org.insanedevelopment.hass.influx.gatherer.service.InfluxDbSendingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class MainController {
 
 	@Autowired
-	private HassioRestStateClientImpl repository;
+	private InfluxDbSendingService service;
 
 	@GetMapping("/")
 	public String index() {
@@ -18,7 +18,7 @@ public class MainController {
 
 	@GetMapping("/web/service/test")
 	public String test() {
-		repository.getAllCurrentStates();
+		service.getFilterAndLog();
 		return "redirect:/";
 	}
 

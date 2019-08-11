@@ -8,12 +8,29 @@ import org.apache.commons.lang3.Validate;
 
 public class FilterPathSpec {
 
+	// entity rules
 	private String entityPathSpec;
-	private List<String> captureAttributes = new ArrayList<>();
-	private boolean captureState = true;
 	private boolean hasWildcard;
 
+	// attributes which should be as FIELDS in influx
+	private List<String> reportAttributes = new ArrayList<>();
+	// attributes which should be tags in influx
+	private List<String> tagAttributes = new ArrayList<>();
+	// should the state be published to influx
+	private boolean reportState = true;
+	// if present overwrite the name of the state field with the CONTENT of the
+	// attribute
+	private String overwriteStateFieldWithAttribute;
+
+	protected FilterPathSpec() {
+		// for snakeYaml
+	}
+
 	public FilterPathSpec(String entityPathSpec) {
+		setEntityPathString(entityPathSpec);
+	}
+
+	public void setEntityPathString(String entityPathSpec) {
 		Validate.notEmpty(entityPathSpec, "Entity path spec is not allowed to be empty");
 		Validate.isTrue(StringUtils.countMatches(entityPathSpec, '*') <= 1, "Entity path spec can only have 1 wildcard");
 		if (StringUtils.contains(entityPathSpec, '*')) {
@@ -21,6 +38,10 @@ public class FilterPathSpec {
 		}
 		this.entityPathSpec = StringUtils.substringBefore(entityPathSpec, "*").trim();
 		hasWildcard = StringUtils.endsWith(entityPathSpec, "*");
+	}
+
+	public String getEntityPathString() {
+		return entityPathSpec + (hasWildcard ? "*" : "");
 	}
 
 	public boolean matches(String entityId) {
@@ -31,6 +52,14 @@ public class FilterPathSpec {
 		}
 	}
 
+	public String getReportAttributesString() {
+		return StringUtils.substringBetween(reportAttributes.toString(), "[", "]");
+	}
+
+	public String getTagAttributesString() {
+		return StringUtils.substringBetween(tagAttributes.toString(), "[", "]");
+	}
+
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
@@ -38,10 +67,12 @@ public class FilterPathSpec {
 		builder.append(entityPathSpec);
 		builder.append(", hasWildcard=");
 		builder.append(hasWildcard);
-		builder.append(", captureAttributes=");
-		builder.append(captureAttributes);
-		builder.append(", captureState=");
-		builder.append(captureState);
+		builder.append(", reportAttributes=");
+		builder.append(reportAttributes);
+		builder.append(", tagAttributes=");
+		builder.append(tagAttributes);
+		builder.append(", reportState=");
+		builder.append(reportState);
 		builder.append("]");
 		return builder.toString();
 	}
@@ -84,16 +115,44 @@ public class FilterPathSpec {
 		return entityPathSpec;
 	}
 
-	public List<String> getCaptureAttributes() {
-		return captureAttributes;
-	}
-
-	public boolean isCaptureState() {
-		return captureState;
-	}
-
-	public boolean isHasWildcard() {
+	public boolean hasWildcard() {
 		return hasWildcard;
+	}
+
+	public List<String> getCaptureAttributes() {
+		return reportAttributes;
+	}
+
+	public List<String> getReportAttributes() {
+		return reportAttributes;
+	}
+
+	public void setReportAttributes(List<String> reportAttributes) {
+		this.reportAttributes = reportAttributes;
+	}
+
+	public List<String> getTagAttributes() {
+		return tagAttributes;
+	}
+
+	public void setTagAttributes(List<String> tagAttributes) {
+		this.tagAttributes = tagAttributes;
+	}
+
+	public boolean isReportState() {
+		return reportState;
+	}
+
+	public void setReportState(boolean reportState) {
+		this.reportState = reportState;
+	}
+
+	public String getOverwriteStateFieldWithAttribute() {
+		return overwriteStateFieldWithAttribute;
+	}
+
+	public void setOverwriteStateFieldWithAttribute(String overwriteStateFieldWithAttribute) {
+		this.overwriteStateFieldWithAttribute = overwriteStateFieldWithAttribute;
 	}
 
 }

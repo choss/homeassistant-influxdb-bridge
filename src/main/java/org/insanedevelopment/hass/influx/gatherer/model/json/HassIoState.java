@@ -39,8 +39,8 @@ public class HassIoState {
 		return builder.toString();
 	}
 
-	public Map<String, Object> getAttributes() {
-		return attributes;
+	public Object getAttribute(String name) {
+		return attributes.get(name);
 	}
 
 	public String getEntityId() {
