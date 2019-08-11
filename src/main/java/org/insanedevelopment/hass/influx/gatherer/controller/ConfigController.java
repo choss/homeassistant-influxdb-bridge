@@ -2,6 +2,7 @@ package org.insanedevelopment.hass.influx.gatherer.controller;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.insanedevelopment.hass.influx.gatherer.model.FilterPathSpec;
@@ -40,8 +41,8 @@ public class ConfigController {
 			@ModelAttribute("stateField") String stateField,
 			@ModelAttribute("tagAttributes") String tagAttributes) {
 
-		List<String> exportAttributesList = Arrays.asList(StringUtils.split(exportAttributes, ","));
-		List<String> tagAttributesList = Arrays.asList(StringUtils.split(tagAttributes, ","));
+		List<String> exportAttributesList = Arrays.asList(StringUtils.split(exportAttributes, ",")).stream().map(s -> s.trim()).collect(Collectors.toList());
+		List<String> tagAttributesList = Arrays.asList(StringUtils.split(tagAttributes, ",")).stream().map(s -> s.trim()).collect(Collectors.toList());
 
 		FilterPathSpec spec = new FilterPathSpec(path);
 		spec.setReportState("on".equals(exportState));

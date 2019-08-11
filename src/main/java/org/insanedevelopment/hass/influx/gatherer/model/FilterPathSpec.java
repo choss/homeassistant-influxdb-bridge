@@ -128,7 +128,7 @@ public class FilterPathSpec {
 	}
 
 	public void setReportAttributes(List<String> reportAttributes) {
-		this.reportAttributes = reportAttributes;
+		this.reportAttributes = new ArrayList<>(reportAttributes);
 	}
 
 	public List<String> getTagAttributes() {
@@ -136,7 +136,7 @@ public class FilterPathSpec {
 	}
 
 	public void setTagAttributes(List<String> tagAttributes) {
-		this.tagAttributes = tagAttributes;
+		this.tagAttributes = new ArrayList<>(tagAttributes);
 	}
 
 	public boolean isReportState() {
