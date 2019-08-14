@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -49,7 +50,7 @@ public class ConfigRepositoryImpl {
 		};
 		representer.addClassTag(ConfigFileSaveObject.class, Tag.MAP);
 		yaml = new Yaml(representer);
-		configItems = readFile();
+		configItems = new CopyOnWriteArrayList<>(readFile());
 		configItems.sort(COMPARATOR);
 	}
 

@@ -1,5 +1,6 @@
 package org.insanedevelopment.hass.influx.gatherer.model;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -13,11 +14,13 @@ public class HassIoMetric {
 	private String domain;
 	private String entityName;
 	private String friendlyName;
+	private Date lastUpdated;
 
-	public HassIoMetric(String entityId) {
+	public HassIoMetric(String entityId, Date lastUpdated) {
 		this.entityId = entityId;
 		domain = StringUtils.substringBefore(entityId, ".");
 		entityName = StringUtils.substringAfter(entityId, ".");
+		this.lastUpdated = lastUpdated;
 	}
 
 	public void addMeasurement(String attributeName, String attributeValue) {
@@ -74,4 +77,9 @@ public class HassIoMetric {
 		builder.append("]");
 		return builder.toString();
 	}
+
+	public Date getLastUpdated() {
+		return lastUpdated;
+	}
+
 }

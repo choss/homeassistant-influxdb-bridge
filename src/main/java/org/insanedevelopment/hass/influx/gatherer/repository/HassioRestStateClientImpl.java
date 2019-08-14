@@ -1,5 +1,6 @@
 package org.insanedevelopment.hass.influx.gatherer.repository;
 
+import java.time.Duration;
 import java.util.function.BiConsumer;
 import javax.annotation.PostConstruct;
 
@@ -8,6 +9,7 @@ import org.insanedevelopment.hass.influx.gatherer.model.json.HassIoStateChangeEv
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.codec.DecodingException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Repository;
@@ -56,9 +58,10 @@ public class HassioRestStateClientImpl {
 				.accept(MediaType.APPLICATION_STREAM_JSON)
 				.retrieve()
 				.bodyToFlux(HassIoStateChangeEvent.class);
-		flux.onErrorContinue(new SilentlyIgnoreAllErrorsConsumer())
+		flux.onErrorContinue(DecodingException.class, new SilentlyIgnoreErrors())
 				.filter(e -> "state_changed".equals(e.getEventType()))
 				.doOnNext(s -> LOGGER.debug(".subscribeToChanges Got message {}", s))
+				.retryBackoff(Long.MAX_VALUE, Duration.ofSeconds(1), Duration.ofMinutes(5))
 				.subscribe(s -> stateChangeObserver.accept(s.getData().getOldState(), s.getData().getNewState()));
 	}
 

@@ -1,15 +1,20 @@
 package org.insanedevelopment.hass.influx.gatherer.service;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.influxdb.InfluxDB;
+import org.influxdb.dto.Point;
 import org.insanedevelopment.hass.influx.gatherer.model.FilterPathSpec;
 import org.insanedevelopment.hass.influx.gatherer.model.HassIoMetric;
 import org.insanedevelopment.hass.influx.gatherer.model.json.HassIoState;
 import org.insanedevelopment.hass.influx.gatherer.repository.ConfigRepositoryImpl;
+import org.insanedevelopment.hass.influx.gatherer.repository.HassIoStateChangeObserver;
 import org.insanedevelopment.hass.influx.gatherer.repository.HassioRestStateClientImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +34,9 @@ public class InfluxDbSendingService {
 	@Autowired
 	private ConfigRepositoryImpl configRepository;
 
+	@Autowired
+	private InfluxDB influxdb;
+
 	/**
 	 * Config of the application says which
 	 * domains/states should be captured or not
@@ -37,14 +45,6 @@ public class InfluxDbSendingService {
 	 */
 	@PostConstruct
 	public void init() {
-		// restClient.subscribeToChanges(new HassIoStateChangeObserver() {
-		//
-		// @Override
-		// public void update(HassIoState oldState, HassIoState newState) {
-		// LOGGER.info(".updateState got new state {}" + newState);
-		// }
-		//
-		// });
 
 	}
 
@@ -54,10 +54,40 @@ public class InfluxDbSendingService {
 		repositoryResult
 				.map(has -> addSpec(has))
 				.filter(p -> p.getRight() != null)
-				.doOnNext(ha -> LOGGER.info("Matched {}", ha.getLeft()))
+				.doOnNext(ha -> LOGGER.debug("Matched {}", ha.getLeft()))
 				.map(this::convertToMetrics)
-				.doOnNext(ha -> LOGGER.info("Reporting {}", ha))
+				.doOnNext(ha -> LOGGER.debug("Reporting {}", ha))
 				.subscribe();
+	}
+
+	public void subscribeToChanges() {
+		restClient.subscribeToChanges(new HassIoStateChangeObserver() {
+
+			@Override
+			public void update(HassIoState oldState, HassIoState newState) {
+				Pair<HassIoState, FilterPathSpec> itemWithRule = addSpec(newState);
+				if (itemWithRule.getRight() != null) {
+					HassIoMetric metric = convertToMetrics(itemWithRule);
+					LOGGER.info(".updateState got new state metric {}", metric);
+				}
+			}
+
+		});
+	}
+
+	private Point convertToInfluxEvent(HassIoMetric metric) {
+		return convertToInfluxEvent(metric, metric.getLastUpdated().getTime());
+	}
+
+	private Point convertToInfluxEvent(HassIoMetric metric, long timestampMilis) {
+		Point point = Point.measurement("hassio")
+				.time(timestampMilis, TimeUnit.MILLISECONDS)
+				.tag(metric.getTags())
+				.tag("friendly_name", metric.getFriendlyName())
+				// TODO add more here
+				.fields(Collections.unmodifiableMap(metric.getMeasurements()))
+				.build();
+		return point;
 	}
 
 	private Pair<HassIoState, FilterPathSpec> addSpec(HassIoState state) {
@@ -75,7 +105,7 @@ public class InfluxDbSendingService {
 		HassIoState state = item.getLeft();
 		FilterPathSpec spec = item.getRight();
 
-		HassIoMetric result = new HassIoMetric(state.getEntityId());
+		HassIoMetric result = new HassIoMetric(state.getEntityId(), state.getLastUpdated());
 
 		result.setFriendlyName(String.valueOf(state.getAttribute("friendly_name")));
 
