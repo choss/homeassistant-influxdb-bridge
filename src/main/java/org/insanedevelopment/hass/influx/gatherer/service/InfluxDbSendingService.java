@@ -45,18 +45,20 @@ public class InfluxDbSendingService {
 	 */
 	@PostConstruct
 	public void init() {
-
+		// TODO make it configurable
+		influxdb.setDatabase("home-assistant");
 	}
 
 	public void getFilterAndLog() {
 		Flux<HassIoState> repositoryResult = restClient.getAllCurrentStates();
-
+		long currentTime = System.currentTimeMillis();
 		repositoryResult
 				.map(has -> addSpec(has))
 				.filter(p -> p.getRight() != null)
 				.doOnNext(ha -> LOGGER.debug("Matched {}", ha.getLeft()))
 				.map(this::convertToMetrics)
-				.doOnNext(ha -> LOGGER.debug("Reporting {}", ha))
+				.map(m -> convertToInfluxEvent(m, currentTime))
+				.doOnNext(this::sendEventToInflux)
 				.subscribe();
 	}
 
@@ -68,7 +70,9 @@ public class InfluxDbSendingService {
 				Pair<HassIoState, FilterPathSpec> itemWithRule = addSpec(newState);
 				if (itemWithRule.getRight() != null) {
 					HassIoMetric metric = convertToMetrics(itemWithRule);
-					LOGGER.info(".updateState got new state metric {}", metric);
+					LOGGER.debug(".updateState got new state metric {}", metric);
+					Point point = convertToInfluxEvent(metric);
+					sendEventToInflux(point);
 				}
 			}
 
@@ -79,6 +83,14 @@ public class InfluxDbSendingService {
 		return convertToInfluxEvent(metric, metric.getLastUpdated().getTime());
 	}
 
+	private void sendEventToInflux(Point point) {
+		try {
+			influxdb.write(point);
+		} catch (Exception e) {
+			LOGGER.error("Error writing to influx", e);
+		}
+	}
+
 	private Point convertToInfluxEvent(HassIoMetric metric, long timestampMilis) {
 		Point point = Point.measurement("hassio")
 				.time(timestampMilis, TimeUnit.MILLISECONDS)
@@ -86,6 +98,7 @@ public class InfluxDbSendingService {
 				.tag("friendly_name", metric.getFriendlyName())
 				.tag("entity_id", metric.getEntityId())
 				.tag("domain", metric.getDomain())
+				.tag("entity_name", metric.getEntityName())
 				.fields(Collections.unmodifiableMap(metric.getMeasurements()))
 				.build();
 		return point;
