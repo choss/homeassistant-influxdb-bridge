@@ -84,7 +84,8 @@ public class InfluxDbSendingService {
 				.time(timestampMilis, TimeUnit.MILLISECONDS)
 				.tag(metric.getTags())
 				.tag("friendly_name", metric.getFriendlyName())
-				// TODO add more here
+				.tag("entity_id", metric.getEntityId())
+				.tag("domain", metric.getDomain())
 				.fields(Collections.unmodifiableMap(metric.getMeasurements()))
 				.build();
 		return point;
