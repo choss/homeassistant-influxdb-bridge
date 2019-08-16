@@ -8,7 +8,7 @@ import org.apache.commons.lang3.StringUtils;
 
 public class HassIoMetric {
 	private Map<String, String> tags = new HashMap<>();
-	private Map<String, String> measurements = new HashMap<>();
+	private Map<String, Object> measurements = new HashMap<>();
 
 	private String entityId;
 	private String domain;
@@ -23,8 +23,10 @@ public class HassIoMetric {
 		this.lastUpdated = lastUpdated;
 	}
 
-	public void addMeasurement(String attributeName, String attributeValue) {
-		measurements.put(attributeName, attributeValue);
+	public void addMeasurement(String attributeName, Object attributeValue) {
+		if (attributeValue != null) {
+			measurements.put(attributeName, attributeValue);
+		}
 	}
 
 	public void addTag(String attributeName, String attributeValue) {
@@ -35,7 +37,7 @@ public class HassIoMetric {
 		return tags;
 	}
 
-	public Map<String, String> getMeasurements() {
+	public Map<String, Object> getMeasurements() {
 		return measurements;
 	}
 
@@ -80,6 +82,10 @@ public class HassIoMetric {
 
 	public Date getLastUpdated() {
 		return lastUpdated;
+	}
+
+	public boolean isValid() {
+		return measurements.size() > 0;
 	}
 
 }

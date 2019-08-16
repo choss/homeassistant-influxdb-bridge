@@ -1,6 +1,6 @@
 package org.insanedevelopment.hass.influx.gatherer.service;
 
-import java.util.Collections;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -19,6 +19,8 @@ import org.insanedevelopment.hass.influx.gatherer.repository.HassioRestStateClie
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import reactor.core.publisher.Flux;
@@ -37,6 +39,12 @@ public class InfluxDbSendingService {
 	@Autowired
 	private InfluxDB influxdb;
 
+	@Value("${spring.influx.database}")
+	private String influxDatabaseName;
+
+	@Value("${spring.influx.rententionpolicy}")
+	private String retentionPolicyName;
+
 	/**
 	 * Config of the application says which
 	 * domains/states should be captured or not
@@ -45,11 +53,17 @@ public class InfluxDbSendingService {
 	 */
 	@PostConstruct
 	public void init() {
-		// TODO make it configurable
-		influxdb.setDatabase("home-assistant");
+		influxdb.setDatabase(influxDatabaseName);
+		influxdb.setRetentionPolicy(retentionPolicyName);
+		subscribeToChanges();
 	}
 
-	public void getFilterAndLog() {
+	@Scheduled(cron = "*/${gatherer.updateinterval} * * * * *")
+	public void scheduledSnapshotGathering() {
+		createStateSnapshotAndSendToInflux();
+	}
+
+	public void createStateSnapshotAndSendToInflux() {
 		Flux<HassIoState> repositoryResult = restClient.getAllCurrentStates();
 		long currentTime = System.currentTimeMillis();
 		repositoryResult
@@ -57,6 +71,7 @@ public class InfluxDbSendingService {
 				.filter(p -> p.getRight() != null)
 				.doOnNext(ha -> LOGGER.debug("Matched {}", ha.getLeft()))
 				.map(this::convertToMetrics)
+				.filter(m -> m.isValid())
 				.map(m -> convertToInfluxEvent(m, currentTime))
 				.doOnNext(this::sendEventToInflux)
 				.subscribe();
@@ -71,8 +86,10 @@ public class InfluxDbSendingService {
 				if (itemWithRule.getRight() != null) {
 					HassIoMetric metric = convertToMetrics(itemWithRule);
 					LOGGER.debug(".updateState got new state metric {}", metric);
-					Point point = convertToInfluxEvent(metric);
-					sendEventToInflux(point);
+					if (metric.isValid()) {
+						Point point = convertToInfluxEvent(metric);
+						sendEventToInflux(point);
+					}
 				}
 			}
 
@@ -87,7 +104,7 @@ public class InfluxDbSendingService {
 		try {
 			influxdb.write(point);
 		} catch (Exception e) {
-			LOGGER.error("Error writing to influx", e);
+			LOGGER.error("Error writing {} to influx", point, e);
 		}
 	}
 
@@ -99,7 +116,7 @@ public class InfluxDbSendingService {
 				.tag("entity_id", metric.getEntityId())
 				.tag("domain", metric.getDomain())
 				.tag("entity_name", metric.getEntityName())
-				.fields(Collections.unmodifiableMap(metric.getMeasurements()))
+				.fields(metric.getMeasurements())
 				.build();
 		return point;
 	}
@@ -126,7 +143,7 @@ public class InfluxDbSendingService {
 		for (String attributeName : spec.getCaptureAttributes()) {
 			Object attributeValue = state.getAttribute(attributeName);
 			if (attributeValue != null) {
-				result.addMeasurement(attributeName, attributeValue.toString());
+				result.addMeasurement(attributeName, convertDataType(attributeValue));
 			}
 		}
 
@@ -142,9 +159,26 @@ public class InfluxDbSendingService {
 			stateName = state.getAttribute(spec.getOverwriteStateFieldWithAttribute()).toString();
 		}
 
-		result.addMeasurement(stateName, state.getState());
+		result.addMeasurement(stateName, convertDataType(state.getState()));
 
 		return result;
+	}
+
+	private Object convertDataType(Object attributeValue) {
+		try {
+			return new BigDecimal(attributeValue.toString());
+		} catch (NumberFormatException nxe) {
+			// ignore
+		}
+		String value = attributeValue.toString();
+		if ("on".equals(value)) {
+			return BigDecimal.ONE;
+		}
+		if ("off".equals(value)) {
+			return BigDecimal.ZERO;
+		}
+		LOGGER.debug("Ignore field value:  " + value);
+		return null;
 	}
 
 }

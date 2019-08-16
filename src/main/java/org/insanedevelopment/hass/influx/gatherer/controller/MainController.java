@@ -18,7 +18,7 @@ public class MainController {
 
 	@GetMapping("/web/service/test")
 	public String test() {
-		service.getFilterAndLog();
+		service.createStateSnapshotAndSendToInflux();
 		return "redirect:/";
 	}
 
