@@ -8,6 +8,7 @@ import javax.annotation.PostConstruct;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.logging.log4j.util.Strings;
 import org.influxdb.InfluxDB;
 import org.influxdb.dto.Point;
 import org.insanedevelopment.hass.influx.gatherer.model.FilterPathSpec;
@@ -74,6 +75,7 @@ public class InfluxDbSendingService {
 				.filter(m -> m.isValid())
 				.map(m -> convertToInfluxEvent(m, currentTime))
 				.doOnNext(this::sendEventToInflux)
+				.doOnError(e -> LOGGER.error("Error sending state snapshot", e))
 				.subscribe();
 	}
 
@@ -154,14 +156,22 @@ public class InfluxDbSendingService {
 			}
 		}
 
-		String stateName = "state";
-		if (!StringUtils.isBlank(spec.getOverwriteStateFieldWithAttribute())) {
-			stateName = state.getAttribute(spec.getOverwriteStateFieldWithAttribute()).toString();
-		}
+		String stateName = getStateFieldName(state, spec);
 
 		result.addMeasurement(stateName, convertDataType(state.getState()));
 
 		return result;
+	}
+
+	private String getStateFieldName(HassIoState state, FilterPathSpec spec) {
+		String stateName = "state";
+		if (!StringUtils.isBlank(spec.getOverwriteStateFieldWithAttribute())) {
+			Object attribute = state.getAttribute(spec.getOverwriteStateFieldWithAttribute());
+			if (attribute != null && !Strings.isBlank(attribute.toString())) {
+				stateName = attribute.toString();
+			}
+		}
+		return stateName;
 	}
 
 	private Object convertDataType(Object attributeValue) {

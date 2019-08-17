@@ -5,7 +5,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -59,8 +58,8 @@ public class ConfigRepositoryImpl {
 		try (InputStream inputStream = IOUtils.buffer(FileUtils.openInputStream(new File(configFileName)))) {
 			result = yaml.loadAs(inputStream, ConfigFileSaveObject.class).getConfigurationLines();
 		} catch (FileNotFoundException fe) {
-			LOGGER.debug(".readFile - No config file found, returning empty data");
-			result = new ArrayList<>();
+			LOGGER.info(".readFile - No config file found, returning default configuration");
+			result = yaml.loadAs(ConfigRepositoryImpl.class.getResourceAsStream("/default_config.yaml"), ConfigFileSaveObject.class).getConfigurationLines();
 		} catch (IOException e) {
 			LOGGER.error(".readFile - Error occured while reading file", e);
 			throw new RuntimeException(e);

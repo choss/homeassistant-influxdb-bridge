@@ -1,0 +1,26 @@
+configurationLines:
+- entityPathString: binary_sensor.*
+  overwriteStateFieldWithAttribute: ''
+  reportAttributes: []
+  reportState: true
+  tagAttributes: []
+- entityPathString: cover.*
+  overwriteStateFieldWithAttribute: ''
+  reportAttributes: [current_position]
+  reportState: true
+  tagAttributes: []
+- entityPathString: light.*
+  overwriteStateFieldWithAttribute: ''
+  reportAttributes: [level]
+  reportState: true
+  tagAttributes: []
+- entityPathString: sensor.*
+  overwriteStateFieldWithAttribute: unit_of_measurement
+  reportAttributes: []
+  reportState: true
+  tagAttributes: []
+- entityPathString: switch.*
+  overwriteStateFieldWithAttribute: ''
+  reportAttributes: []
+  reportState: true
+  tagAttributes: []
