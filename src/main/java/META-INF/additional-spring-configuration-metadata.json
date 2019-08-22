@@ -1,0 +1,33 @@
+{
+	"properties": [
+		{
+			"name": "hassio.token",
+			"type": "java.lang.String",
+			"description": "API token to connect to hassio instance"
+		},{
+			"name": "hassio.port",
+			"type": "java.lang.String",
+			"description": "Port on which hassio is running (normally 8123)"
+		},{
+			"name": "spring.influx.rententionpolicy",
+			"type": "java.lang.String",
+			"description": "Rentention policy which should be used when inserting data into influxDB"
+		},{
+			"name": "spring.influx.database",
+			"type": "java.lang.String",
+			"description": "Database name for the influxDB"
+		},{
+			"name": "gatherer.updateinterval",
+			"type": "java.lang.Integer",
+			"description": "Interval of snapshots sent to influxDB in seconds. Always starts are second 0. Value of 15 means 0th, 15th, 30th, 45th second of every minute"
+		},{
+			"name": "hassio.secure",
+			"type": "java.lang.Boolean",
+			"description": "Should we use https or http (true = https)"
+		},{
+			"name": "hassio.host",
+			"type": "java.lang.String",
+			"description": "Hostname/IP of the hassio instance"
+		}
+
+]}
