@@ -2,8 +2,6 @@ package org.insanedevelopment.hass.influx.gatherer.repository;
 
 import java.time.Duration;
 import java.util.function.BiConsumer;
-import javax.annotation.PostConstruct;
-
 import org.insanedevelopment.hass.influx.gatherer.model.json.HassIoState;
 import org.insanedevelopment.hass.influx.gatherer.model.json.HassIoStateChangeEvent;
 import org.slf4j.Logger;
@@ -12,10 +10,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.codec.DecodingException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import reactor.core.publisher.Flux;
+import reactor.netty.http.client.HttpClient;
 
 @Repository
 public class HassioRestStateClientImpl {
@@ -24,21 +26,19 @@ public class HassioRestStateClientImpl {
 
 	private WebClient webClient;
 
-	@Value("${hassio.token}")
-	private String bearerToken;
+	public HassioRestStateClientImpl(WebClient.Builder builder,
+			@Value("${hassio.secure}") Boolean isSecureCommunication,
+			@Value("${hassio.host}:${hassio.port}") String hostname,
+			@Value("${hassio.token}") String bearerToken) {
 
-	@Value("${hassio.host}:${hassio.port}")
-	private String hostname;
-
-	@Value("${hassio.secure}")
-	private Boolean isSecureCommunication;
-
-	@PostConstruct
-	public void init() {
+		SslContextBuilder contextBuilder = SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE);
+		HttpClient httpClient = HttpClient.create().secure(sslSpec -> sslSpec.sslContext(contextBuilder));
 		webClient = WebClient.builder()
-				.baseUrl(expandUrl("", Scheme.HTTP))
+				.clientConnector(new ReactorClientHttpConnector(httpClient))
+				.baseUrl(expandUrl(hostname, Scheme.HTTP, isSecureCommunication))
 				.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken)
 				.build();
+
 	}
 
 	public Flux<HassIoState> getAllCurrentStates() {
@@ -65,7 +65,7 @@ public class HassioRestStateClientImpl {
 				.subscribe(s -> stateChangeObserver.accept(s.getData().getOldState(), s.getData().getNewState()));
 	}
 
-	private String expandUrl(String uriPart, Scheme scheme) {
+	private String expandUrl(String hostname, Scheme scheme, Boolean isSecureCommunication) {
 		String result = null;
 		switch (scheme) {
 		case HTTP:
@@ -75,7 +75,7 @@ public class HassioRestStateClientImpl {
 			result = isSecureCommunication ? "wss://" : "ws://";
 			break;
 		}
-		return result + hostname + uriPart;
+		return result + hostname;
 	}
 
 	private enum Scheme {
